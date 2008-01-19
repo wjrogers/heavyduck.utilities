@@ -44,7 +44,7 @@ namespace HeavyDuck.Utilities.Forms
             // message_label
             // 
             this.message_label.AutoSize = true;
-            this.message_label.Location = new System.Drawing.Point(12, 18);
+            this.message_label.Location = new System.Drawing.Point(12, 15);
             this.message_label.Name = "message_label";
             this.message_label.Size = new System.Drawing.Size(56, 13);
             this.message_label.TabIndex = 1;

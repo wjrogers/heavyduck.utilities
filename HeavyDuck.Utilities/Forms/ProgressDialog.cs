@@ -8,11 +8,17 @@ namespace HeavyDuck.Utilities.Forms
 {
     public delegate void ProgressTask(IProgressDialog dialog);
 
+    public class ProgressException : Exception
+    {
+        public ProgressException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
     public class ProgressDialog : IProgressDialog
     {
         private ProgressForm m_form;
         private List<ProgressTask> m_tasks;
         private EventWaitHandle m_wait;
+        private Exception m_exception;
 
         public ProgressDialog()
         {
@@ -80,6 +86,9 @@ namespace HeavyDuck.Utilities.Forms
         {
             Thread t;
 
+            // make sure that exception is null
+            m_exception = null;
+
             // create and launch the thread that will run stuff
             t = new Thread(RunTasks);
             t.IsBackground = true;
@@ -87,6 +96,9 @@ namespace HeavyDuck.Utilities.Forms
 
             // show the dialog
             m_form.ShowDialog();
+
+            // throw an exception if something bad happened while running the tasks
+            if (m_exception != null) throw new ProgressException("Background task failed", m_exception);
         }
 
         private void RunTasks()
@@ -95,9 +107,16 @@ namespace HeavyDuck.Utilities.Forms
             m_wait.WaitOne();
 
             // run the tasks
-            foreach (ProgressTask task in m_tasks)
+            try
             {
-                task(this);
+                foreach (ProgressTask task in m_tasks)
+                {
+                    task(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_exception = ex;
             }
 
             // close the form
