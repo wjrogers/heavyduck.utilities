@@ -25,8 +25,10 @@ namespace HeavyDuck.Utilities.Forms
             grid.BackgroundColor = SystemColors.Window;
             grid.BorderStyle = BorderStyle.Fixed3D;
             grid.Font = new Font("Verdana", 8);
+            grid.GridColor = SystemColors.InactiveBorder;
             grid.ReadOnly = readOnly;
             grid.RowHeadersVisible = false;
+            grid.RowTemplate.Height = 18;
         }
 
         public static void AddColumn(DataGridView grid, string name, string header)
