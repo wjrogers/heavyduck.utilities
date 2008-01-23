@@ -33,8 +33,11 @@ namespace HeavyDuck.Utilities.Forms
 
         public static void AddColumn(DataGridView grid, string name, string header)
         {
-            DataGridViewColumn column = new DataGridViewTextBoxColumn();
+            AddColumn(grid, new DataGridViewTextBoxColumn(), name, header);
+        }
 
+        public static void AddColumn(DataGridView grid, DataGridViewColumn column, string name, string header)
+        {
             column.Name = name;
             column.DataPropertyName = name;
             column.HeaderText = header;
