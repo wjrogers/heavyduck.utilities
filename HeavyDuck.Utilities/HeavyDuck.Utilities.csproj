@@ -42,6 +42,7 @@
   <ItemGroup>
     <Compile Include="Data\TableHelper.cs" />
     <Compile Include="Forms\GridHelper.cs" />
+    <Compile Include="Forms\OptionsDialog.cs" />
     <Compile Include="Forms\ProgressDialog.cs" />
     <Compile Include="Forms\ProgressForm.cs">
       <SubType>Form</SubType>
@@ -56,6 +57,7 @@
       <DependentUpon>InputDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Util.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Forms\InputDialog.resx">
