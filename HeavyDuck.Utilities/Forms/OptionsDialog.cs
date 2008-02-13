@@ -490,9 +490,14 @@ namespace HeavyDuck.Utilities.Forms
         bool ValueAsBoolean { get; }
 
         /// <summary>
-        /// Gets the current value of an option as an integer.
+        /// Gets the current value of the option as an integer.
         /// </summary>
         int ValueAsInt { get; }
+
+        /// <summary>
+        /// Gets the current value of the option as a decimal.
+        /// </summary>
+        decimal ValueAsDecimal { get; }
     }
 
     /// <summary>
@@ -651,6 +656,11 @@ namespace HeavyDuck.Utilities.Forms
         public int ValueAsInt
         {
             get { return Convert.ToInt32(m_value); }
+        }
+
+        public decimal ValueAsDecimal
+        {
+            get { return Convert.ToDecimal(m_value); }
         }
 
         #endregion
