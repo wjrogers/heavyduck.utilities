@@ -18,11 +18,17 @@ namespace HeavyDuck.Utilities.Data
             // prepare column lists
             sumDataColumns = new List<DataColumn>(sumColumns.Length);
             foreach (string name in sumColumns)
-                sumDataColumns.Add(table.Columns[name]);
+            {
+                if (!sumDataColumns.Contains(table.Columns[name]))
+                    sumDataColumns.Add(table.Columns[name]);
+            }
             groupNames = groupBy.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
             groupDataColumns = new List<DataColumn>(groupNames.Length);
             foreach (string name in groupNames)
-                groupDataColumns.Add(table.Columns[name]);
+            {
+                if (!groupDataColumns.Contains(table.Columns[name]))
+                    groupDataColumns.Add(table.Columns[name]);
+            }
 
             // create result table and row dictionary
             result = new DataTable(table.TableName + " Grouped");
