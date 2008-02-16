@@ -152,11 +152,16 @@ namespace HeavyDuck.Utilities.Forms
                         }
 
                         // add the control
-                        option.Control.Width = CONTROL_WIDTH;
                         if (type == OptionType.Bool)
+                        {
+                            option.Control.Width = LABEL_WIDTH + CONTROL_WIDTH;
                             option.Control.Location = new System.Drawing.Point(PADDING_STANDARD + PADDING_CHECKBOX, nextTop);
+                        }
                         else
+                        {
+                            option.Control.Width = CONTROL_WIDTH;
                             option.Control.Location = new System.Drawing.Point(LABEL_WIDTH + PADDING_STANDARD * 2, nextTop);
+                        }
                         page.Controls.Add(option.Control);
 
                         // bump down the next control
