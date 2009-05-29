@@ -25,7 +25,11 @@ namespace HeavyDuck.Utilities.Forms
             m_wait = new EventWaitHandle(false, EventResetMode.AutoReset);
             m_form = new ProgressForm(m_wait);
             m_tasks = new List<ProgressTask>();
+
+            this.AutoAdvance = false;
         }
+
+        public bool AutoAdvance { get; set; }
 
         public void AddTask(ProgressTask task)
         {
@@ -94,6 +98,10 @@ namespace HeavyDuck.Utilities.Forms
             t.IsBackground = true;
             t.Start();
 
+            // when auto-advancing, set the parameters
+            if (AutoAdvance)
+                Update(0, m_tasks.Count);
+
             // show the dialog
             m_form.ShowDialog();
 
@@ -112,6 +120,9 @@ namespace HeavyDuck.Utilities.Forms
                 foreach (ProgressTask task in m_tasks)
                 {
                     task(this);
+
+                    if (AutoAdvance)
+                        Advance();
                 }
             }
             catch (Exception ex)
