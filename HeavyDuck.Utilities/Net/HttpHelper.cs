@@ -24,6 +24,26 @@ namespace HeavyDuck.Utilities.Net
         }
 
         /// <summary>
+        /// GETs an URL from the internets.
+        /// </summary>
+        /// <param name="url">The url to request.</param>
+        /// <returns>The path to the temporary file.</returns>
+        public static HttpWebResponse UrlGet(string url)
+        {
+            // create request
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+
+            // set request properties
+            request.KeepAlive = false;
+            request.Method = "GET";
+            request.UserAgent = USER_AGENT;
+
+            // do the actual net stuff
+            return (HttpWebResponse)request.GetResponse();
+        }
+
+
+        /// <summary>
         /// POSTs to an URL and returns the response.
         /// </summary>
         /// <param name="url">The url to request.</param>
