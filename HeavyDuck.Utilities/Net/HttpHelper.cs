@@ -17,10 +17,11 @@ namespace HeavyDuck.Utilities.Net
         /// </summary>
         /// <param name="url">The url to request.</param>
         /// <param name="parameters">The form parameters.</param>
+        /// <param name="autoRedirect">If true, the request will follow redirect responses automatically.</param>
         /// <returns>The response object.</returns>
-        public static HttpWebResponse UrlPost(string url, IEnumerable<KeyValuePair<string, string>> parameters)
+        public static HttpWebResponse UrlPost(string url, IEnumerable<KeyValuePair<string, string>> parameters, bool autoRedirect)
         {
-            return UrlPost(url, parameters, new CookieCollection());
+            return UrlPost(url, parameters, autoRedirect, null);
         }
 
         /// <summary>
@@ -30,10 +31,22 @@ namespace HeavyDuck.Utilities.Net
         /// <returns>The path to the temporary file.</returns>
         public static HttpWebResponse UrlGet(string url)
         {
+            return UrlGet(url, null);
+        }
+
+        /// <summary>
+        /// GETs an URL from the internets.
+        /// </summary>
+        /// <param name="url">The url to request.</param>
+        /// <param name="cookies">The cookies to be included in the request.</param>
+        /// <returns>The path to the temporary file.</returns>
+        public static HttpWebResponse UrlGet(string url, CookieContainer cookies)
+        {
             // create request
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
 
             // set request properties
+            request.CookieContainer = cookies;
             request.KeepAlive = false;
             request.Method = "GET";
             request.UserAgent = USER_AGENT;
@@ -48,9 +61,10 @@ namespace HeavyDuck.Utilities.Net
         /// </summary>
         /// <param name="url">The url to request.</param>
         /// <param name="parameters">The form parameters.</param>
+        /// <param name="autoRedirect">If true, the request will follow redirect responses automatically.</param>
         /// <param name="cookies">The cookies to be included in the request.</param>
         /// <returns>The response object.</returns>
-        public static HttpWebResponse UrlPost(string url, IEnumerable<KeyValuePair<string, string>> parameters, CookieCollection cookies)
+        public static HttpWebResponse UrlPost(string url, IEnumerable<KeyValuePair<string, string>> parameters, bool autoRedirect, CookieContainer cookies)
         {
             byte[] buffer;
 
@@ -58,9 +72,9 @@ namespace HeavyDuck.Utilities.Net
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
 
             // set the standard request properties
+            request.AllowAutoRedirect = autoRedirect;
             request.ContentType = "application/x-www-form-urlencoded";
-            request.CookieContainer = new CookieContainer();
-            request.CookieContainer.Add(cookies); // ???
+            request.CookieContainer = cookies;
             request.KeepAlive = false;
             request.Method = "POST";
             request.UserAgent = USER_AGENT;
