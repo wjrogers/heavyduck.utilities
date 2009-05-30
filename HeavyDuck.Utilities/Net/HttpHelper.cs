@@ -13,18 +13,6 @@ namespace HeavyDuck.Utilities.Net
         private static readonly Encoding m_encoding = new UTF8Encoding(false);
 
         /// <summary>
-        /// POSTs to an URL and returns the response.
-        /// </summary>
-        /// <param name="url">The url to request.</param>
-        /// <param name="parameters">The form parameters.</param>
-        /// <param name="autoRedirect">If true, the request will follow redirect responses automatically.</param>
-        /// <returns>The response object.</returns>
-        public static HttpWebResponse UrlPost(string url, IEnumerable<KeyValuePair<string, string>> parameters, bool autoRedirect)
-        {
-            return UrlPost(url, parameters, autoRedirect, null);
-        }
-
-        /// <summary>
         /// GETs an URL from the internets.
         /// </summary>
         /// <param name="url">The url to request.</param>
@@ -55,6 +43,17 @@ namespace HeavyDuck.Utilities.Net
             return (HttpWebResponse)request.GetResponse();
         }
 
+        /// <summary>
+        /// POSTs to an URL and returns the response.
+        /// </summary>
+        /// <param name="url">The url to request.</param>
+        /// <param name="parameters">The form parameters.</param>
+        /// <param name="autoRedirect">If true, the request will follow redirect responses automatically.</param>
+        /// <returns>The response object.</returns>
+        public static HttpWebResponse UrlPost(string url, IEnumerable<KeyValuePair<string, string>> parameters, bool autoRedirect)
+        {
+            return UrlPost(url, parameters, autoRedirect, null);
+        }
 
         /// <summary>
         /// POSTs to an URL and returns the response.
