@@ -7,6 +7,11 @@ namespace HeavyDuck.Utilities.Data
 {
     public static class TableHelper
     {
+        public static Nullable<T> GetNullableValue<T>(object value) where T : struct
+        {
+            return value == null || Convert.IsDBNull(value) ? null : (Nullable<T>)value;
+        }
+
         public static DataTable GroupBy(DataTable table, string groupBy, params string[] sumColumns)
         {
             string[] groupNames;
