@@ -21,8 +21,9 @@ namespace HeavyDuck.Utilities.Forms
         protected const int LABEL_WIDTH = 120;
         protected const int CONTROL_WIDTH = 200;
 
-        private Dictionary<string, Option> m_options = new Dictionary<string, Option>();
-        private Form m_form;
+        private readonly Dictionary<string, Option> m_options = new Dictionary<string, Option>();
+        private readonly Dictionary<string, List<Option>> m_depends = new Dictionary<string, List<Option>>();
+        private readonly Form m_form;
 
         protected OptionsDialog(XPathDocument doc)
         {
@@ -112,11 +113,15 @@ namespace HeavyDuck.Utilities.Forms
                             case OptionType.Enum:
                                 // create the combo box
                                 ComboBox combo = new ComboBox();
+                                XPathNavigator labelAttr = null;
                                 
                                 // iterate the options
                                 enumIter = optionIter.Current.Select("ValueList/Value");
                                 while (enumIter.MoveNext())
-                                    combo.Items.Add(enumIter.Current.Value);
+                                {
+                                    labelAttr = enumIter.Current.SelectSingleNode("@label") ?? enumIter.Current;
+                                    combo.Items.Add(new OptionEnumValue(enumIter.Current.Value, labelAttr.Value));
+                                }
 
                                 // bind and done
                                 combo.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -135,6 +140,7 @@ namespace HeavyDuck.Utilities.Forms
                         // initialize the option's value to the default and add it to the collection
                         option = new Option(optionName, type, defaultValue, control);
                         option.Reset();
+                        control.Tag = option;
                         m_options[optionName] = option;
 
                         // add label for non-checkboxes
@@ -166,6 +172,24 @@ namespace HeavyDuck.Utilities.Forms
 
                         // bump down the next control
                         nextTop = option.Control.Bottom + PADDING_STANDARD;
+
+                        // process dependencies
+                        XPathNodeIterator dependsIter = optionIter.Current.Select("Depends");
+                        while (dependsIter.MoveNext())
+                        {
+                            List<Option> list;
+                            string name = dependsIter.Current.Value;
+
+                            // find or create list
+                            if (!m_depends.TryGetValue(name, out list))
+                            {
+                                list = new List<Option>();
+                                m_depends[name] = list;
+                            }
+
+                            // add
+                            list.Add(option);
+                        }
                     }
 
                     // add the finished page to the tabs
@@ -173,6 +197,20 @@ namespace HeavyDuck.Utilities.Forms
 
                     // increase the height of the tabs if necessary
                     if (nextTop + PADDING_TABS_HEIGHT > tabs.ClientSize.Height) tabs.ClientSize = new System.Drawing.Size(tabs.ClientSize.Width, nextTop + PADDING_TABS_HEIGHT);
+                }
+
+                // hook events for depends
+                foreach (string name in m_depends.Keys)
+                {
+                    Option option;
+
+                    // grab the option, make sure it exists and is a bool
+                    if (!m_options.TryGetValue(name, out option) || option.OptionType != OptionType.Bool)
+                        continue;
+
+                    // hook event and trigger it so stuff starts in the correct state
+                    ((CheckBox)option.Control).CheckedChanged += new EventHandler(depends_CheckedChanged);
+                    depends_CheckedChanged(option.Control, EventArgs.Empty);
                 }
 
                 // create buttons
@@ -217,6 +255,19 @@ namespace HeavyDuck.Utilities.Forms
                 {
                     o.InitializeControlValue(o.DefaultValue);
                 }
+            }
+        }
+
+        private void depends_CheckedChanged(object sender, EventArgs e)
+        {
+            CheckBox box = (CheckBox)sender;
+            string name = (box.Tag as Option).Name;
+            List<Option> list;
+
+            if (m_depends.TryGetValue(name, out list))
+            {
+                foreach (Option option in list)
+                    option.Control.Enabled = box.Checked;
             }
         }
 
@@ -576,7 +627,7 @@ namespace HeavyDuck.Utilities.Forms
                     ((NumericUpDown)m_control).Value = (decimal)value;
                     break;
                 case OptionType.Enum:
-                    m_control.Text = (string)value;
+                    ((ComboBox)m_control).SelectedItem = (string)value;
                     break;
                 case OptionType.Bool:
                     ((CheckBox)m_control).Checked = (bool)value;
@@ -603,7 +654,7 @@ namespace HeavyDuck.Utilities.Forms
                     m_value = ((NumericUpDown)m_control).Value;
                     break;
                 case OptionType.Enum:
-                    m_value = m_control.Text;
+                    m_value = (((ComboBox)m_control).SelectedItem as OptionEnumValue).Value;
                     break;
                 case OptionType.Bool:
                     m_value = ((CheckBox)m_control).Checked;
@@ -669,5 +720,32 @@ namespace HeavyDuck.Utilities.Forms
         }
 
         #endregion
+    }
+
+    internal class OptionEnumValue
+    {
+        public string Value { get; set; }
+        public string Label { get; set; }
+
+        public OptionEnumValue(string value, string label)
+        {
+            this.Value = value;
+            this.Label = label;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return object.Equals(obj, Value);
+        }
+
+        public override int GetHashCode()
+        {
+            return Value.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return Label;
+        }
     }
 }
