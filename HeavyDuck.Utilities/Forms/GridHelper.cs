@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
@@ -50,6 +51,27 @@ namespace HeavyDuck.Utilities.Forms
         {
             foreach (DataGridViewColumn column in grid.Columns)
                 column.SortMode = showSortArrow ? DataGridViewColumnSortMode.Programmatic : DataGridViewColumnSortMode.NotSortable;
+        }
+
+        /// <summary>
+        /// Gets the DataRow bound to a DataGridViewRow.
+        /// </summary>
+        public static DataRow GetBoundDataRow(DataGridView grid, int rowIndex)
+        {
+            DataRowView view;
+
+            try
+            {
+                view = grid.Rows[rowIndex].DataBoundItem as DataRowView;
+                if (view != null)
+                    return view.Row;
+                else
+                    return null;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return null;
+            }
         }
     }
 }
