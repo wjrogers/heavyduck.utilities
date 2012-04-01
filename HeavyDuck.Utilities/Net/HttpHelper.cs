@@ -117,9 +117,9 @@ namespace HeavyDuck.Utilities.Net
             list = new StringBuilder();
             foreach (KeyValuePair<string, string> parameter in sorted)
             {
-                list.Append(System.Web.HttpUtility.UrlEncode(parameter.Key));
+                list.Append(Uri.EscapeDataString(parameter.Key));
                 list.Append("=");
-                list.Append(System.Web.HttpUtility.UrlEncode(parameter.Value));
+                list.Append(Uri.EscapeDataString(parameter.Value));
                 list.Append("&");
             }
             if (list.Length > 0) list.Remove(list.Length - 1, 1);
