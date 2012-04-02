@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace HeavyDuck.Utilities.Collections
@@ -10,14 +12,16 @@ namespace HeavyDuck.Utilities.Collections
     /// Provides support for binding a list of objects of any type to a control, including filtering.
     /// </summary>
     /// <typeparam name="T">The type of object the list will contain.</typeparam>
-    public class ObjectBindingList<T> : IList<T>, ICollection<T>, IBindingList, IBindingListView, ITypedList
+    public class ObjectBindingList<T> : IList<T>, ICollection<T>, IComparer<T>, IBindingList, IBindingListView, ITypedList
     {
         private readonly PropertyDescriptorCollection m_props = TypeDescriptor.GetProperties(typeof(T), new Attribute[] { new BrowsableAttribute(true) }).Sort();
-        private string m_filter = null;
+        private Func<T, bool> m_filter;
+        private string m_filter_string;
         private bool m_implements_filterable = typeof(T).GetInterface("IFilterable") != null;
         private List<T> m_list_actual;
         private List<T> m_list_current;
         private ListSortDescriptionCollection m_sorts = null;
+        private List<Tuple<ListSortDirection, Func<T, object>>> m_sorts_delegates;
 
         /// <summary>
         /// Creates a new instance of ObjectBindingList.
@@ -35,7 +39,7 @@ namespace HeavyDuck.Utilities.Collections
         public ObjectBindingList(IEnumerable<T> list)
         {
             m_list_actual = new List<T>(list);
-            m_list_current = new List<T>(list);
+            m_list_current = new List<T>(m_list_actual);
         }
 
         /// <summary>
@@ -48,14 +52,7 @@ namespace HeavyDuck.Utilities.Collections
             if (filterChanged && IsFiltered)
             {
                 // create a new list to keep the items currently selected by the filter
-                m_list_current = new List<T>(m_list_actual.Count);
-
-                // test each item to see whether it passes
-                foreach (T item in m_list_actual)
-                {
-                    if (TestObject(item))
-                        m_list_current.Add(item);
-                }
+                m_list_current = m_list_actual.Where(m_filter).ToList();
             }
             else if (filterChanged)
             {
@@ -65,21 +62,10 @@ namespace HeavyDuck.Utilities.Collections
 
             // apply sort
             if (IsSorted)
-            {
                 m_list_current.Sort(CompareObjects);
-            }
 
             // raise the list changed event to signal the list has changed significantly
             OnListChanged(new ListChangedEventArgs(ListChangedType.Reset, -1));
-        }
-
-        protected bool TestObject(T item)
-        {
-            // if the type of item in our list implements IFilterable, use that interface to test
-            if (m_implements_filterable)
-                return (item as IFilterable).Test(m_filter);
-            else
-                return item.ToString().ToLower().Contains(m_filter);
         }
 
         protected int CompareObjects(T a, T b)
@@ -87,16 +73,15 @@ namespace HeavyDuck.Utilities.Collections
             int c;
             Comparer comp = Comparer.Default;
 
-            foreach (ListSortDescription lsd in m_sorts)
+            // use delegates for performance
+            foreach (var sort in m_sorts_delegates)
             {
                 // compare property
-                c = comp.Compare(lsd.PropertyDescriptor.GetValue(a), lsd.PropertyDescriptor.GetValue(b));
-                if (lsd.SortDirection == ListSortDirection.Descending)
-                    c = -c;
+                c = comp.Compare(sort.Item2(a), sort.Item2(b));
 
                 // if there was a difference, return
                 if (c != 0)
-                    return c;
+                    return sort.Item1 == ListSortDirection.Descending ? -c : c;
             }
 
             // they are equal!
@@ -111,19 +96,19 @@ namespace HeavyDuck.Utilities.Collections
         protected int AddItemCurrent(T item)
         {
             // only add item if we are not filtered or the item passes the filter
-            if (!IsFiltered || TestObject(item))
+            if (!IsFiltered || m_filter(item))
             {
                 // loop through the current list looking for the correct insertion point
                 if (IsSorted)
                 {
-                    for (int i = 0; i < m_list_current.Count; ++i)
-                    {
-                        if (CompareObjects(m_list_current[i], item) > 0)
-                        {
-                            m_list_current.Insert(i, item);
-                            return i;
-                        }
-                    }
+                    int i = m_list_current.BinarySearch(item, this);
+
+                    // don't care if there is already an equivalent item or not; insert at the returned point
+                    if (i < 0) i = ~i;
+                    m_list_current.Insert(i, item);
+
+                    // return where we put it
+                    return i;
                 }
 
                 // this guy goes to the end of the line
@@ -165,6 +150,21 @@ namespace HeavyDuck.Utilities.Collections
             throw new ArgumentException(string.Format("Type '{0}' has no property '{1}'", typeof(T).Name, propertyName));
         }
 
+        /// <summary>
+        /// Applies a predicate-based filter to the list.
+        /// </summary>
+        /// <param name="filter">The new filter.</param>
+        /// <param name="forceRefresh">If true, the list will be re-filtered even if the value of the filter has not changed.</param>
+        public void ApplyFilter(Func<T, bool> filter, bool forceRefresh = false)
+        {
+            if (m_filter != filter || forceRefresh)
+            {
+                m_filter = filter;
+                m_filter_string = null;
+                UpdateCurrentList(true);
+            }
+        }
+
         public T[] ToArray()
         {
             return m_list_current.ToArray();
@@ -193,6 +193,43 @@ namespace HeavyDuck.Utilities.Collections
         public bool IsFiltered
         {
             get { return m_filter != null; }
+        }
+
+        /// <summary>
+        /// Creates a generic delegate for any property-get method.
+        /// </summary>
+        /// <typeparam name="TTarget">The type to which the property belongs.</typeparam>
+        /// <param name="propertyGet">The property-get method.</param>
+        /// <remarks>
+        /// Creating a delegate improves performance by an order of magnitude over setting the property value with reflection.
+        /// See: http://msmvps.com/blogs/jon_skeet/archive/2008/08/09/making-reflection-fly-and-exploring-delegates.aspx
+        /// </remarks>
+        private static Func<TTarget, object> CreatePropertyGetDelegate<TTarget>(MethodInfo propertyGet)
+        {
+            // get the generic helper method
+            MethodInfo genericHelper = typeof(ObjectBindingList<T>).GetMethod("CreatePropertyGetDelegateHelper", BindingFlags.Static | BindingFlags.NonPublic);
+
+            // supply type arguments
+            MethodInfo constructedHelper = genericHelper.MakeGenericMethod(typeof(TTarget), propertyGet.ReturnType);
+
+            // call it and return the resulting delegate
+            return (Func<TTarget, object>)constructedHelper.Invoke(null, new object[] { propertyGet });
+        }
+
+        /// <summary>
+        /// Converts a strongly-typed property-get delegate to a loosely-typed Func&lt;TTarget, object&gt; delegate.
+        /// </summary>
+        /// <typeparam name="TTarget">The type to which the property belongs.</typeparam>
+        /// <typeparam name="TParam">The type of the property value.</typeparam>
+        /// <param name="propertyGet">The property-get method.</param>
+        /// <remarks>This helper is necessary because we don't know the type of the property value at compile time.</remarks>
+        private static Func<TTarget, object> CreatePropertyGetDelegateHelper<TTarget, TParam>(MethodInfo propertyGet)
+        {
+            // convert the slow MethodInfo into a fast, strongly typed, open delegate
+            Func<TTarget, TParam> func = (Func<TTarget, TParam>)Delegate.CreateDelegate(typeof(Func<TTarget, TParam>), propertyGet);
+
+            // now create a more weakly typed delegate which will call the strongly typed one
+            return (TTarget target) => func(target);
         }
 
         #region IList<T> Members
@@ -423,7 +460,7 @@ namespace HeavyDuck.Utilities.Collections
 
         public bool IsSorted
         {
-            get { return m_sorts != null; }
+            get { return SortDescriptions != null; }
         }
 
         public event ListChangedEventHandler ListChanged;
@@ -435,7 +472,7 @@ namespace HeavyDuck.Utilities.Collections
 
         public void RemoveSort()
         {
-            m_sorts = null;
+            SortDescriptions = null;
             UpdateCurrentList(false);
         }
 
@@ -444,7 +481,7 @@ namespace HeavyDuck.Utilities.Collections
             get
             {
                 if (!IsSorted) throw new InvalidOperationException("List is not currently sorted");
-                return m_sorts[0].SortDirection;
+                return SortDescriptions[0].SortDirection;
             }
         }
 
@@ -453,7 +490,7 @@ namespace HeavyDuck.Utilities.Collections
             get
             {
                 if (!IsSorted) throw new InvalidOperationException("List is not currently sorted");
-                return m_sorts[0].PropertyDescriptor;
+                return SortDescriptions[0].PropertyDescriptor;
             }
         }
 
@@ -478,15 +515,15 @@ namespace HeavyDuck.Utilities.Collections
 
         public void ApplySort(ListSortDescriptionCollection sorts)
         {
-            m_sorts = sorts;
+            SortDescriptions = sorts;
             UpdateCurrentList(false);
         }
 
-        public string Filter
+        string IBindingListView.Filter
         {
             get
             {
-                return m_filter;
+                return m_filter_string;
             }
             set
             {
@@ -494,9 +531,10 @@ namespace HeavyDuck.Utilities.Collections
                 {
                     RemoveFilter();
                 }
-                else
+                else if (m_filter_string != value)
                 {
-                    m_filter = value.ToLower();
+                    m_filter_string = value.ToLowerInvariant();
+                    m_filter = t => t.ToString().ToLowerInvariant().Contains(m_filter_string);
                     UpdateCurrentList(true);
                 }
             }
@@ -504,13 +542,36 @@ namespace HeavyDuck.Utilities.Collections
 
         public void RemoveFilter()
         {
-            m_filter = null;
-            UpdateCurrentList(true);
+            ApplyFilter(null);
         }
 
         public ListSortDescriptionCollection SortDescriptions
         {
             get { return m_sorts; }
+            private set
+            {
+                List<Tuple<ListSortDirection, Func<T, object>>> delegates = null;
+                Func<T, object> getter;
+
+                // don't do anything if the new one is the same as the old one
+                if (value == m_sorts) return;
+
+                // create property getter delegates for performance
+                if (value != null)
+                {
+                    delegates = new List<Tuple<ListSortDirection, Func<T, object>>>(value.Count);
+
+                    foreach (ListSortDescription lsd in value)
+                    {
+                        getter = CreatePropertyGetDelegate<T>(typeof(T).GetProperty(lsd.PropertyDescriptor.Name).GetGetMethod());
+                        delegates.Add(Tuple.Create(lsd.SortDirection, getter));
+                    }
+                }
+
+                // assign
+                m_sorts = value;
+                m_sorts_delegates = delegates;
+            }
         }
 
         bool IBindingListView.SupportsAdvancedSorting
@@ -538,17 +599,14 @@ namespace HeavyDuck.Utilities.Collections
         }
 
         #endregion
-    }
 
-    /// <summary>
-    /// Provides a method for testing an object using a string filter.
-    /// </summary>
-    public interface IFilterable
-    {
-        /// <summary>
-        /// Tests whether this object matches the filter.
-        /// </summary>
-        /// <param name="filter">The filter to test.</param>
-        bool Test(string filter);
+        #region IComparer<T> Members
+
+        public int Compare(T x, T y)
+        {
+            return CompareObjects(x, y);
+        }
+
+        #endregion
     }
 }
