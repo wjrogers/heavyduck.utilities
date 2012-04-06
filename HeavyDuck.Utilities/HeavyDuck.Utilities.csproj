@@ -45,6 +45,9 @@
   <ItemGroup>
     <Compile Include="Collections\ObjectBindingList.cs" />
     <Compile Include="Data\TableHelper.cs" />
+    <Compile Include="Forms\BufferedDataGridView.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Forms\GridHelper.cs" />
     <Compile Include="Forms\OptionsDialog.cs" />
     <Compile Include="Forms\ProgressDialog.cs" />

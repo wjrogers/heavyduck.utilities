@@ -22,12 +22,12 @@ namespace HeavyDuck.Utilities.Forms
             grid.AllowUserToOrderColumns = false;
             grid.AllowUserToResizeColumns = true;
             grid.AllowUserToResizeRows = false;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             grid.AutoGenerateColumns = false;
             grid.BackgroundColor = SystemColors.Window;
             grid.BorderStyle = BorderStyle.Fixed3D;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             grid.Font = new Font("Verdana", 8);
-            grid.GridColor = SystemColors.InactiveBorder;
+            grid.GridColor = SystemColors.ControlLight;
             grid.ReadOnly = readOnly;
             grid.RowHeadersVisible = false;
             grid.RowTemplate.Height = 18;
